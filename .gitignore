@@ -5,3 +5,6 @@
 circuit.cc
 constants.dat
 .idea
+test_working_dir/
+log_input_signals.txt
+ir_log/
