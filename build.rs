@@ -6,13 +6,23 @@ fn main() -> Result<()> {
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
-    let bindings = bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
         .header("include/graph_witness.h")
-        .allowlist_type("gw_status_t")
-        // Tell cargo to invalidate the built crate whenever any of the
-        // included header files changed.
+        .allowlist_type("gw_status_t");
+
+    if env::var("TARGET").unwrap() == "wasm32-unknown-unknown" {
+        builder = builder
+            // Specify the include path for Clang
+            .clang_arg("-I/usr/include")
+            .clang_arg("-I/usr/include/x86_64-linux-gnu")
+            .clang_arg("-I/usr/include/i386-linux-gnu");
+    }
+
+    // Tell cargo to invalidate the built crate whenever any of the
+    // included header files changed.
+    let bindings = builder
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // Finish the builder and generate the bindings.
         .generate()

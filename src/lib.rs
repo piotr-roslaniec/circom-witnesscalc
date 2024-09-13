@@ -6,6 +6,9 @@ mod field;
 pub mod graph;
 mod storage;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 use std::collections::HashMap;
 use std::ffi::{c_void, c_char, c_int, CStr};
 use std::slice::from_raw_parts;
@@ -15,6 +18,21 @@ use crate::graph::Node;
 use wtns_file::FieldElement;
 use crate::field::M;
 
+#[cfg(not(target_arch = "wasm32"))]
+use libc::{malloc, memcpy};
+
+#[cfg(target_arch = "wasm32")]
+unsafe fn malloc(size: usize) -> *mut c_void {
+    // Use WebAssembly's memory allocation functions
+    std::alloc::alloc(std::alloc::Layout::from_size_align(size, 1).unwrap()) as *mut c_void
+}
+
+#[cfg(target_arch = "wasm32")]
+fn memcpy(dest: *mut c_void, src: *const c_void, n: usize) {
+    unsafe {
+        std::ptr::copy_nonoverlapping(src, dest, n);
+    }
+}
 pub type InputSignalsInfo = HashMap<String, (usize, usize)>;
 
 pub mod proto {
@@ -29,8 +47,8 @@ fn prepare_status(status: *mut gw_status_t, code: GW_ERROR_CODE, error_msg: &str
         let bs = error_msg.as_bytes();
         unsafe {
             (*status).code = code;
-            (*status).error_msg = libc::malloc(bs.len()+1) as *mut c_char;
-            libc::memcpy((*status).error_msg as *mut c_void, bs.as_ptr() as *mut c_void, bs.len());
+            (*status).error_msg = malloc(bs.len()+1) as *mut c_char;
+            memcpy((*status).error_msg as *mut c_void, bs.as_ptr() as *mut c_void, bs.len());
             *((*status).error_msg.offset(bs.len() as isize)) = 0;
         }
     }
@@ -90,8 +108,8 @@ pub extern "C" fn gw_calc_witness(
 
     unsafe {
         *wtns_len = witness_data.len();
-        *wtns_data = libc::malloc(witness_data.len()) as *mut c_void;
-        libc::memcpy(*wtns_data, witness_data.as_ptr() as *const c_void, witness_data.len());
+        *wtns_data = malloc(witness_data.len()) as *mut c_void;
+        memcpy(*wtns_data, witness_data.as_ptr() as *const c_void, witness_data.len());
     }
 
     prepare_status(status, GW_ERROR_CODE_ERROR, "test error");

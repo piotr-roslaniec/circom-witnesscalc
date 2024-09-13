@@ -61,6 +61,7 @@ function test_circuit() {
 	# run commands from the project directory
 	pushd "${script_dir}" > /dev/null
 	time target/release/build-circuit "$circuit_path" "$circuit_graph_path" -l "$circomlib_path"
+	# TODO: Replace this with a TS CLI that calls WASM
 	time target/release/calc-witness "$circuit_graph_path" "$inputs_path" "$witness_path"
 	popd > /dev/null
 	

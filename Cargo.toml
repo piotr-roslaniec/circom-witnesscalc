@@ -21,20 +21,26 @@ wtns-file = "0.1.5"
 lazy_static = "1.4.0"
 libc = "0.2.155"
 # circom dependencies
-#compiler = { path = "../circom/compiler" }
-#code_producers = { path = "../circom/code_producers" }
-#program_structure = { path = "../circom/program_structure" }
-#parser = { path = "../circom/parser" }
-#type_analysis = { path = "../circom/type_analysis" }
-#constraint_generation = { path = "../circom/constraint_generation" }
-compiler = { git = "https://github.com/olomix/circom.git", branch = "master" }
-code_producers = { git = "https://github.com/olomix/circom.git", branch = "master" }
-program_structure = { git = "https://github.com/olomix/circom.git", branch = "master" }
-parser = { git = "https://github.com/olomix/circom.git", branch = "master" }
-type_analysis = { git = "https://github.com/olomix/circom.git", branch = "master" }
-constraint_generation = { git = "https://github.com/olomix/circom.git", branch = "master" }
+compiler = { path = "../circom/compiler" }
+code_producers = { path = "../circom/code_producers" }
+program_structure = { path = "../circom/program_structure" }
+parser = { path = "../circom/parser" }
+type_analysis = { path = "../circom/type_analysis" }
+constraint_generation = { path = "../circom/constraint_generation" }
+#compiler = { git = "https://github.com/olomix/circom.git", branch = "master" }
+#code_producers = { git = "https://github.com/olomix/circom.git", branch = "master" }
+#program_structure = { git = "https://github.com/olomix/circom.git", branch = "master" }
+#parser = { git = "https://github.com/olomix/circom.git", branch = "master" }
+#type_analysis = { git = "https://github.com/olomix/circom.git", branch = "master" }
+#constraint_generation = { git = "https://github.com/olomix/circom.git", branch = "master" }
 prost = "0.13.1"
+# wasm
+wasm-bindgen = { version = "0.2.93", optional = true, features = ["serde-serialize"] }
+getrandom = { version = "*", features = ["js"], default-features = false, optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
 
+[features]
+wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen"]
 
 [profile.release]
 opt-level = 3
