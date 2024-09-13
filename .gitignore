@@ -8,4 +8,7 @@ constants.dat
 test_working_dir/
 log_input_signals.txt
 ir_log/
-test_results_native.txt
+test_results_*.txt
+pkg-*/
+node_modules/
+wasm_vfs/

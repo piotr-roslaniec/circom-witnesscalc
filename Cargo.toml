@@ -24,7 +24,8 @@ libc = "0.2.155"
 compiler = { path = "../circom/compiler" }
 code_producers = { path = "../circom/code_producers" }
 program_structure = { path = "../circom/program_structure" }
-parser = { path = "../circom/parser" }
+#parser = { path = "../circom/parser" }
+parser_wasm = { path = "../circom/parser_wasm" }
 type_analysis = { path = "../circom/type_analysis" }
 constraint_generation = { path = "../circom/constraint_generation" }
 #compiler = { git = "https://github.com/olomix/circom.git", branch = "master" }
@@ -34,18 +35,45 @@ constraint_generation = { path = "../circom/constraint_generation" }
 #type_analysis = { git = "https://github.com/olomix/circom.git", branch = "master" }
 #constraint_generation = { git = "https://github.com/olomix/circom.git", branch = "master" }
 prost = "0.13.1"
+
 # wasm
 wasm-bindgen = { version = "0.2.93", optional = true, features = ["serde-serialize"] }
 getrandom = { version = "*", features = ["js"], default-features = false, optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
+#wee_alloc = { version = "0.4", optional = true } # Added because of "too many locals" error in dev mode compilation
+console_error_panic_hook = { version = "0.1.7", optional = true }
+log = "0.4.6"
+wasm-logger = { version = "0.2", optional = true }
+vfs = { version = "0.12.0", features = ["embedded-fs"], optional = true } # using /mw/wasm-support branch because of WASM issues: https://github.com/manuel-woelker/rust-vfs/issues/68#issuecomment-2108028157
+#vfs = { path = "../rust-vfs", features = ["embedded-fs"], optional = true }
+rust-embed = { version = "6.1.0", optional = true }
 
 [features]
-wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen"]
+wasm = [
+    "wasm-bindgen",
+    "getrandom/js",
+    "serde-wasm-bindgen",
+    #    "wee_alloc"
+    "console_error_panic_hook",
+    "wasm-logger",
+    "vfs",
+    "rust-embed"
+]
 
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+[profile.dev]
+# Fixes "too many locals: locals exceed maximum" when running "wasm-pack ... --dev"
+opt-level = 1
+incremental = true
+
+# TODO: I'm unable t find these symbols in the debugger, what is wrong?
+# https://github.com/rustwasm/wasm-pack/issues/1351
+[package.metadata.wasm-pack.profile.dev]
+wasm-bindgen = { dwarf-debug-info = true }
 
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]

@@ -1,8 +1,8 @@
+use circom_witnesscalc::{calc_witness, wtns_from_witness};
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
-use circom_witnesscalc::{calc_witness, wtns_from_witness};
 
 struct Args {
     graph_file: String,
@@ -13,7 +13,10 @@ struct Args {
 fn parse_args() -> Args {
     let args: Vec<String> = env::args().collect();
     if args.len() != 4 {
-        eprintln!("Usage: {} <graph.bin> <inputs.json> <witness.wtns>", args[0]);
+        eprintln!(
+            "Usage: {} <graph.bin> <inputs.json> <witness.wtns>",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -27,8 +30,8 @@ fn parse_args() -> Args {
 fn main() {
     let args = parse_args();
 
-    let inputs_data = std::fs::read_to_string(&args.inputs_file)
-        .expect("Failed to read input file");
+    let inputs_data =
+        std::fs::read_to_string(&args.inputs_file).expect("Failed to read input file");
 
     let graph_data = std::fs::read(&args.graph_file).expect("Failed to read graph file");
 
@@ -54,5 +57,4 @@ mod tests {
     fn test_ok() {
         println!("OK");
     }
-
 }

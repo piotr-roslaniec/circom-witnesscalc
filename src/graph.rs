@@ -1,16 +1,16 @@
+use crate::field::M;
+use ark_bn254::Fr;
+use ark_ff::{BigInt, BigInteger, One, PrimeField, Zero};
+use rand::Rng;
+use ruint::aliases::U256;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::error::Error;
+use std::ops::{BitOr, BitXor, Deref};
 use std::{
     collections::HashMap,
     ops::{BitAnd, Shl, Shr},
 };
-use std::cmp::Ordering;
-use std::error::Error;
-use std::ops::{BitOr, BitXor, Deref};
-use crate::field::M;
-use ark_bn254::Fr;
-use ark_ff::{BigInt, PrimeField, BigInteger, Zero, One};
-use rand::Rng;
-use ruint::aliases::U256;
-use serde::{Deserialize, Serialize};
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 use ruint::uint;
@@ -73,7 +73,7 @@ impl Operation {
                 } else {
                     a.mul_mod(b.inv_mod(M).unwrap(), M)
                 }
-            },
+            }
             Add => a.add_mod(b, M),
             Sub => a.add_mod(M - b, M),
             Pow => a.pow_mod(b, M),
@@ -106,23 +106,33 @@ impl Operation {
             // We always should return something on the circuit execution.
             // So in case of division by 0 we would return 0. And the proof
             // should be invalid in the end.
-            Div => if b.is_zero() { Fr::zero() } else { a / b },
+            Div => {
+                if b.is_zero() {
+                    Fr::zero()
+                } else {
+                    a / b
+                }
+            }
             Add => a + b,
             Sub => a - b,
-            Idiv => if b.is_zero() {
-                Fr::zero()
-            } else {
-                Fr::new((Into::<U256>::into(a) / Into::<U256>::into(b)).into())
-            },
-            Mod => if b.is_zero() {
-                Fr::zero()
-            } else {
-                Fr::new((Into::<U256>::into(a) % Into::<U256>::into(b)).into())
-            },
+            Idiv => {
+                if b.is_zero() {
+                    Fr::zero()
+                } else {
+                    Fr::new((Into::<U256>::into(a) / Into::<U256>::into(b)).into())
+                }
+            }
+            Mod => {
+                if b.is_zero() {
+                    Fr::zero()
+                } else {
+                    Fr::new((Into::<U256>::into(a) % Into::<U256>::into(b)).into())
+                }
+            }
             Eq => match a.cmp(&b) {
                 Ordering::Equal => Fr::one(),
                 _ => Fr::zero(),
-            }
+            },
             Neq => match a.cmp(&b) {
                 Ordering::Equal => Fr::zero(),
                 _ => Fr::one(),
@@ -131,8 +141,20 @@ impl Operation {
             Gt => Fr::new(u_gt(&a.into(), &b.into()).into()),
             Leq => Fr::new(u_lte(&a.into(), &b.into()).into()),
             Geq => Fr::new(u_gte(&a.into(), &b.into()).into()),
-            Land => if a.is_zero() || b.is_zero() { Fr::zero() } else { Fr::one() },
-            Lor => if a.is_zero() && b.is_zero() { Fr::zero() } else { Fr::one() },
+            Land => {
+                if a.is_zero() || b.is_zero() {
+                    Fr::zero()
+                } else {
+                    Fr::one()
+                }
+            }
+            Lor => {
+                if a.is_zero() && b.is_zero() {
+                    Fr::zero()
+                } else {
+                    Fr::one()
+                }
+            }
             Shl => shl(a, b),
             Shr => shr(a, b),
             Bor => bit_or(a, b),
@@ -180,18 +202,28 @@ pub enum UnoOperation {
 impl UnoOperation {
     pub fn eval(&self, a: U256) -> U256 {
         match self {
-            UnoOperation::Neg => if a == U256::ZERO { U256::ZERO } else { M - a },
+            UnoOperation::Neg => {
+                if a == U256::ZERO {
+                    U256::ZERO
+                } else {
+                    M - a
+                }
+            }
             UnoOperation::Id => a,
         }
     }
 
     pub fn eval_fr(&self, a: Fr) -> Fr {
         match self {
-            UnoOperation::Neg => if a.is_zero() { Fr::zero() } else {
-                let mut x = Fr::MODULUS;
-                x.sub_with_borrow(&a.into_bigint());
-                Fr::from_bigint(x).unwrap()
-            },
+            UnoOperation::Neg => {
+                if a.is_zero() {
+                    Fr::zero()
+                } else {
+                    let mut x = Fr::MODULUS;
+                    x.sub_with_borrow(&a.into_bigint());
+                    Fr::from_bigint(x).unwrap()
+                }
+            }
             _ => unimplemented!("uno operator {:?} not implemented for Montgomery", self),
         }
     }
@@ -214,13 +246,25 @@ pub enum TresOperation {
 impl TresOperation {
     pub fn eval(&self, a: U256, b: U256, c: U256) -> U256 {
         match self {
-            TresOperation::TernCond => if a == U256::ZERO { c } else { b },
+            TresOperation::TernCond => {
+                if a == U256::ZERO {
+                    c
+                } else {
+                    b
+                }
+            }
         }
     }
 
     pub fn eval_fr(&self, a: Fr, b: Fr, c: Fr) -> Fr {
         match self {
-            TresOperation::TernCond => if a.is_zero() { c } else { b },
+            TresOperation::TernCond => {
+                if a.is_zero() {
+                    c
+                } else {
+                    b
+                }
+            }
         }
     }
 }
@@ -256,21 +300,15 @@ impl Nodes {
         let me = self.0.get(idx.0).ok_or(NodeConstErr::EmptyNode(idx))?;
         match me {
             Node::Constant(v) => Ok(v.clone()),
-            Node::UnoOp(op, a) => {
-                Ok(op.eval(
-                    self.to_const(NodeIdx(*a))?))
-            }
+            Node::UnoOp(op, a) => Ok(op.eval(self.to_const(NodeIdx(*a))?)),
             Node::Op(op, a, b) => {
-                Ok(op.eval(
-                    self.to_const(NodeIdx(*a))?,
-                    self.to_const(NodeIdx(*b))?))
+                Ok(op.eval(self.to_const(NodeIdx(*a))?, self.to_const(NodeIdx(*b))?))
             }
-            Node::TresOp(op, a, b, c) => {
-                Ok(op.eval(
-                    self.to_const(NodeIdx(*a))?,
-                    self.to_const(NodeIdx(*b))?,
-                    self.to_const(NodeIdx(*c))?))
-            }
+            Node::TresOp(op, a, b, c) => Ok(op.eval(
+                self.to_const(NodeIdx(*a))?,
+                self.to_const(NodeIdx(*b))?,
+                self.to_const(NodeIdx(*c))?,
+            )),
             Node::Input(_) => Err(NodeConstErr::InputSignal),
             Node::MontConstant(_) => {
                 panic!("MontConstant should not be used here")
@@ -282,7 +320,7 @@ impl Nodes {
         self.0.push(n);
         NodeIdx(self.0.len() - 1)
     }
-    
+
     pub fn get(&self, idx: NodeIdx) -> Option<&Node> {
         self.0.get(idx.0)
     }
@@ -326,7 +364,6 @@ impl std::fmt::Display for NodeConstErr {
 
 impl Error for NodeConstErr {}
 
-
 fn compute_shl_uint(a: U256, b: U256) -> U256 {
     debug_assert!(b.lt(&U256::from(256)));
     let ls_limb = b.as_limbs()[0];
@@ -356,12 +393,14 @@ fn assert_valid(nodes: &[Node]) {
 }
 
 pub fn optimize(nodes: &mut Vec<Node>, outputs: &mut [usize]) {
+    log::info!("Optimizing circuit");
     tree_shake(nodes, outputs);
     propagate(nodes);
     value_numbering(nodes, outputs);
     constants(nodes);
     tree_shake(nodes, outputs);
     montgomery_form(nodes);
+    log::info!("Optimization done");
 }
 
 pub fn evaluate(nodes: &[Node], inputs: &[U256], outputs: &[usize]) -> Vec<U256> {
@@ -417,7 +456,9 @@ pub fn propagate(nodes: &mut [Node]) {
                 constants += 1;
             }
         } else if let Node::TresOp(op, a, b, c) = nodes[i] {
-            if let (Node::Constant(va), Node::Constant(vb), Node::Constant(vc)) = (nodes[a], nodes[b], nodes[c]) {
+            if let (Node::Constant(va), Node::Constant(vb), Node::Constant(vc)) =
+                (nodes[a], nodes[b], nodes[c])
+            {
                 nodes[i] = Node::Constant(op.eval(va, vb, vc));
                 constants += 1;
             }
@@ -608,7 +649,11 @@ pub fn montgomery_form(nodes: &mut [Node]) {
             Constant(c) => *node = MontConstant(Fr::new((*c).into())),
             MontConstant(..) => (),
             Input(..) => (),
-            Op(Mul | Div | Add | Sub | Idiv | Mod | Eq | Neq | Lt | Gt | Leq | Geq | Land | Lor | Shl | Shr | Bor | Band | Bxor , ..) => (),
+            Op(
+                Mul | Div | Add | Sub | Idiv | Mod | Eq | Neq | Lt | Gt | Leq | Geq | Land | Lor
+                | Shl | Shr | Bor | Band | Bxor,
+                ..,
+            ) => (),
             Op(op @ Pow, ..) => unimplemented!("Operators Montgomery form: {:?}", op),
             UnoOp(UnoOperation::Neg, ..) => (),
             UnoOp(op, ..) => unimplemented!("Uno Operators Montgomery form: {:?}", op),
@@ -640,8 +685,8 @@ fn shr(a: Fr, b: Fr) -> Fr {
     }
 
     match b.cmp(&Fr::from(254u64)) {
-        Ordering::Equal  => {return Fr::zero()},
-        Ordering::Greater => {return Fr::zero()},
+        Ordering::Equal => return Fr::zero(),
+        Ordering::Greater => return Fr::zero(),
         _ => (),
     };
 
@@ -660,7 +705,7 @@ fn shr(a: Fr, b: Fr) -> Fr {
         return Fr::from_bigint(result).unwrap();
     }
 
-    let mask:u64 = (1<<n) - 1;
+    let mask: u64 = (1 << n) - 1;
     let mut carrier: u64 = c[3] & mask;
     c[3] >>= n;
     for i in (0..3).rev() {
@@ -717,8 +762,8 @@ fn bit_xor(a: Fr, b: Fr) -> Fr {
 }
 
 // M / 2
-const halfM: U256 = uint!(10944121435919637611123202872628637544274182200208017171849102093287904247808_U256);
-
+const halfM: U256 =
+    uint!(10944121435919637611123202872628637544274182200208017171849102093287904247808_U256);
 
 fn u_gte(a: &U256, b: &U256) -> U256 {
     let a_neg = &halfM < a;
@@ -768,18 +813,17 @@ fn u_lt(a: &U256, b: &U256) -> U256 {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::ops::Div;
     use super::*;
-    use ruint::{uint};
+    use ruint::uint;
+    use std::ops::Div;
     use std::str::FromStr;
 
     #[test]
     fn test_ok() {
-        let a= Fr::from(4u64);
-        let b= Fr::from(2u64);
+        let a = Fr::from(4u64);
+        let b = Fr::from(2u64);
         let c = shl(a, b);
         assert_eq!(c.cmp(&Fr::from(16u64)), Ordering::Equal)
     }
@@ -788,41 +832,55 @@ mod tests {
     fn test_div() {
         assert_eq!(
             Operation::Div.eval_fr(Fr::from(2u64), Fr::from(3u64)),
-            Fr::from_str("7296080957279758407415468581752425029516121466805344781232734728858602831873").unwrap());
+            Fr::from_str(
+                "7296080957279758407415468581752425029516121466805344781232734728858602831873"
+            )
+            .unwrap()
+        );
 
         assert_eq!(
             Operation::Div.eval_fr(Fr::from(6u64), Fr::from(2u64)),
-            Fr::from_str("3").unwrap());
+            Fr::from_str("3").unwrap()
+        );
 
         assert_eq!(
             Operation::Div.eval_fr(Fr::from(7u64), Fr::from(2u64)),
-            Fr::from_str("10944121435919637611123202872628637544274182200208017171849102093287904247812").unwrap());
+            Fr::from_str(
+                "10944121435919637611123202872628637544274182200208017171849102093287904247812"
+            )
+            .unwrap()
+        );
     }
 
     #[test]
     fn test_idiv() {
         assert_eq!(
             Operation::Idiv.eval_fr(Fr::from(2u64), Fr::from(3u64)),
-            Fr::from_str("0").unwrap());
+            Fr::from_str("0").unwrap()
+        );
 
         assert_eq!(
             Operation::Idiv.eval_fr(Fr::from(6u64), Fr::from(2u64)),
-            Fr::from_str("3").unwrap());
+            Fr::from_str("3").unwrap()
+        );
 
         assert_eq!(
             Operation::Idiv.eval_fr(Fr::from(7u64), Fr::from(2u64)),
-            Fr::from_str("3").unwrap());
+            Fr::from_str("3").unwrap()
+        );
     }
 
     #[test]
     fn test_fr_mod() {
         assert_eq!(
             Operation::Mod.eval_fr(Fr::from(7u64), Fr::from(2u64)),
-            Fr::from_str("1").unwrap());
+            Fr::from_str("1").unwrap()
+        );
 
         assert_eq!(
             Operation::Mod.eval_fr(Fr::from(7u64), Fr::from(9u64)),
-            Fr::from_str("7").unwrap());
+            Fr::from_str("7").unwrap()
+        );
     }
 
     #[test]
@@ -859,26 +917,44 @@ mod tests {
 
         // -1 >= 3 => 0
         let result = u_gte(
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495616_U256),
-            &uint!(3_U256));
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495616_U256
+            ),
+            &uint!(3_U256),
+        );
         assert_eq!(result, uint!(0_U256));
 
         // -1 >= -2 => 1
         let result = u_gte(
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495616_U256),
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495615_U256));
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495616_U256
+            ),
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495615_U256
+            ),
+        );
         assert_eq!(result, uint!(1_U256));
 
         // -2 >= -1 => 0
         let result = u_gte(
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495615_U256),
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495616_U256));
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495615_U256
+            ),
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495616_U256
+            ),
+        );
         assert_eq!(result, uint!(0_U256));
 
         // -2 == -2 => 1
         let result = u_gte(
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495615_U256),
-            &uint!(21888242871839275222246405745257275088548364400416034343698204186575808495615_U256));
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495615_U256
+            ),
+            &uint!(
+                21888242871839275222246405745257275088548364400416034343698204186575808495615_U256
+            ),
+        );
         assert_eq!(result, uint!(1_U256));
     }
 

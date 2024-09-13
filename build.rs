@@ -1,5 +1,5 @@
-use std::io::Result;
 use std::env;
+use std::io::Result;
 use std::path::{Path, PathBuf};
 
 fn main() -> Result<()> {
