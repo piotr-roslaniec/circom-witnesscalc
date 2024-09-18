@@ -61,15 +61,12 @@ function test_circuit() {
 	# run commands from the project directory
 	pushd "${script_dir}" > /dev/null
 
-	# TODO: Replace these two with a TS CLI that calls WASM
-#	time target/release/build-circuit "$circuit_path" "$circuit_graph_path" -l "$circomlib_path"
   time node nodejs/src/build-circuit.js "$circuit_path" "$circuit_graph_path" -l "$circomlib_path" \
     -l "${script_dir}/test_deps/iden3-circuits-authV2/circuits" \
     -l "${script_dir}/test_deps/iden3-circuits-master/circuits" \
     -l "${script_dir}/test_deps/iden3-circuits-authV2/node_modules/circomlib/circuits" \
     -l "${script_dir}/test_deps/iden3-circuits-master/node_modules/circomlib/circuits"
-  echo "Calc witness $circuit_graph_path $inputs_path $witness_path"
-	time target/release/calc-witness "$circuit_graph_path" "$inputs_path" "$witness_path"
+	time node nodejs/src/calc-witness.js "$circuit_graph_path" "$inputs_path" "$witness_path"
 
 	popd > /dev/null
 	

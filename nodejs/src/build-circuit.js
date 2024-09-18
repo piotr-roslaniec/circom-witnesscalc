@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { build_circuit, BuildCircuitArgs } = require("witnesscalc");
+const { readFilesToMemory } = require("./shared");
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -94,29 +95,6 @@ function parseArgs() {
   );
 }
 
-async function readFilesToMemory(filesToRead) {
-  const files = {};
-  const stack = [...filesToRead];
-
-  while (stack.length > 0) {
-    const filePath = stack.pop();
-    if (!filePath) {
-      console.error("Skipping empty file");
-      continue;
-    }
-    if (fs.lstatSync(filePath).isDirectory()) {
-      const dirContents = fs.readdirSync(filePath);
-      for (const file of dirContents) {
-        stack.push(`${filePath}/${file}`);
-      }
-    } else {
-      files[filePath] = await fs.promises.readFile(filePath, "utf-8");
-    }
-  }
-  return files;
-}
-
-
 async function main() {
   const args = parseArgs();
 
@@ -140,4 +118,7 @@ async function main() {
   console.log(`circuit graph saved to file: ${argsObj.graph_file}`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

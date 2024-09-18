@@ -14,28 +14,15 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use vfs::{VfsPath, VfsError, MemoryFS, EmbeddedFS, FileSystem};
 
-#[wasm_bindgen]
-pub fn calc_witness(inputs: &str, graph_data: &[u8]) -> JsValue {
-    let witness: Vec<u8> = crate::calc_witness(inputs, graph_data)
-        .iter()
-        .flat_map(|u256_vec| u256_vec.iter().flat_map(|u256| u256.to_be_bytes_vec()))
-        .collect();
-    witness
-        .serialize(&Serializer::new().serialize_maps_as_objects(true))
-        .unwrap()
-}
-
-#[wasm_bindgen]
-pub fn wtns_from_witness(witness: JsValue) -> JsValue {
-    let witness: Vec<u8> = from_value(witness).unwrap();
-    let witness: Vec<U256> = witness
-        .chunks(32)
-        .map(|chunk| U256::from_be_bytes::<32>(chunk.try_into().unwrap()))
-        .collect();
-    let result: Vec<u8> = crate::wtns_from_witness(witness);
-    result
-        .serialize(&Serializer::new().serialize_maps_as_objects(true))
-        .unwrap()
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    //
+    // For more details see
+    // https://github.com/rustwasm/console_error_panic_hook#readme
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
 }
 
 #[wasm_bindgen]
@@ -89,13 +76,17 @@ pub fn build_circuit(args: &BuildCircuitArgs, version: &str, files_map: &JsValue
     circuit
 }
 
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if our code ever panics.
-    //
-    // For more details see
-    // https://github.com/rustwasm/console_error_panic_hook#readme
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
+#[wasm_bindgen]
+pub fn calc_witness(inputs: &str, graph: &[u8]) -> JsValue {
+    set_panic_hook();
+    wasm_logger::init(wasm_logger::Config::default());
+
+    // Now `graph` is a byte slice you can work with directly
+    log::info!("Received inputs with {} characters", inputs.len());
+    log::info!("Received graph with {} bytes", graph.len());
+
+    let wtns_bytes = crate::calc_witness_flow(inputs, graph);
+    log::info!("Witness calculated");
+
+    wtns_bytes.into()
 }

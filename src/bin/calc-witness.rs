@@ -1,8 +1,7 @@
-use circom_witnesscalc::{calc_witness, wtns_from_witness};
+use circom_witnesscalc::{calc_witness_flow};
 use std::env;
 use std::fs::File;
 use std::io::Write;
-use std::time::Instant;
 
 struct Args {
     graph_file: String,
@@ -29,25 +28,16 @@ fn parse_args() -> Args {
 
 fn main() {
     let args = parse_args();
-
     let inputs_data =
         std::fs::read_to_string(&args.inputs_file).expect("Failed to read input file");
-
     let graph_data = std::fs::read(&args.graph_file).expect("Failed to read graph file");
 
-    let start = Instant::now();
-
-    let witness = calc_witness(&inputs_data, &graph_data).unwrap();
-    let wtns_bytes = wtns_from_witness(witness);
-
-    let duration = start.elapsed();
-    println!("Witness generated in: {:?}", duration);
+    let wtns_bytes = calc_witness_flow(&inputs_data, &graph_data);
 
     {
         let mut f = File::create(&args.witness_file).unwrap();
         f.write_all(&wtns_bytes).unwrap();
     }
-
     println!("witness saved to {}", &args.witness_file);
 }
 

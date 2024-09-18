@@ -1,7 +1,6 @@
-use circom_witnesscalc::build_circuit::{build_circuit_flow, Args};
+use circom_witnesscalc::build_circuit::Args;
 use std::path::PathBuf;
-use std::{env, fs};
-use std::env::args;
+use std::env;
 
 fn parse_args() -> Args {
     let args: Vec<String> = env::args().collect();
@@ -72,6 +71,7 @@ fn parse_args() -> Args {
 }
 
 fn main() {
+    // TODO: Fix this
     // let args = parse_args();
     // let version = "2.1.9";
     // let bytes = build_circuit_flow(&args, version);

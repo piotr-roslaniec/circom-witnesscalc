@@ -169,6 +169,15 @@ pub fn calc_witness(inputs: &str, graph_data: &[u8]) -> Result<Vec<U256>, Error>
     Ok(graph::evaluate(&nodes, inputs_buffer.as_slice(), &signals))
 }
 
+pub fn calc_witness_flow(inputs: &str, graph_data: &[u8]) -> Vec<u8> {
+    // let start = Instant::now();
+    let witness = calc_witness(&inputs, &graph_data).unwrap();
+    let wtns_bytes = wtns_from_witness(witness);
+    // let duration = start.elapsed();
+    // println!("Witness generated in: {:?}", duration);
+    wtns_bytes
+}
+
 fn get_inputs_size(nodes: &Vec<Node>) -> usize {
     let mut start = false;
     let mut max_index = 0usize;
