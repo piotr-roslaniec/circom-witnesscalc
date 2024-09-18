@@ -32,7 +32,7 @@ fn main() {
         std::fs::read_to_string(&args.inputs_file).expect("Failed to read input file");
     let graph_data = std::fs::read(&args.graph_file).expect("Failed to read graph file");
 
-    let wtns_bytes = calc_witness_flow(&inputs_data, &graph_data);
+    let (wtns_bytes, _) = calc_witness_flow(&inputs_data, &graph_data);
 
     {
         let mut f = File::create(&args.witness_file).unwrap();

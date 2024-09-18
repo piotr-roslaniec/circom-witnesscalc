@@ -403,6 +403,7 @@ dependencies = [
  "vfs",
  "wasm-bindgen",
  "wasm-logger",
+ "web-time",
  "wtns-file",
 ]
 

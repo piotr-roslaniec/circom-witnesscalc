@@ -65,7 +65,7 @@ impl BuildCircuitArgs {
 #[wasm_bindgen]
 pub fn build_circuit(args: &BuildCircuitArgs, version: &str, files_map: &JsValue) -> JsValue {
     set_panic_hook();
-    wasm_logger::init(wasm_logger::Config::default());
+    // wasm_logger::init(wasm_logger::Config::default());
     log::info!("Logging to console");
     let files_map: HashMap<String, String> = files_map.into_serde().unwrap();
     log::info!("Received files_map with {} entries", files_map.len());
@@ -77,16 +77,34 @@ pub fn build_circuit(args: &BuildCircuitArgs, version: &str, files_map: &JsValue
 }
 
 #[wasm_bindgen]
-pub fn calc_witness(inputs: &str, graph: &[u8]) -> JsValue {
+#[derive(Serialize)]
+struct CalcWitnessResult {
+    wtns_bytes: Vec<u8>,
+    duration_micros: u128,
+}
+
+#[wasm_bindgen]
+impl CalcWitnessResult {
+    #[wasm_bindgen]
+    pub fn to_js_object(&self) -> JsValue {
+        JsValue::from_serde(&self).unwrap()
+    }
+}
+
+#[wasm_bindgen]
+pub fn calc_witness(inputs: &str, graph: &[u8]) -> CalcWitnessResult {
     set_panic_hook();
-    wasm_logger::init(wasm_logger::Config::default());
+    // wasm_logger::init(wasm_logger::Config::default());
 
     // Now `graph` is a byte slice you can work with directly
     log::info!("Received inputs with {} characters", inputs.len());
     log::info!("Received graph with {} bytes", graph.len());
 
-    let wtns_bytes = crate::calc_witness_flow(inputs, graph);
+    let (wtns_bytes, duration_micros) = crate::calc_witness_flow(inputs, graph);
     log::info!("Witness calculated");
 
-    wtns_bytes.into()
+    CalcWitnessResult {
+        wtns_bytes,
+        duration_micros,
+    }
 }

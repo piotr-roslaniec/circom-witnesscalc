@@ -32,10 +32,15 @@ async function main() {
   const graphData = await fs.promises.readFile(graphFile);
   const graphDataUint8Array = new Uint8Array(graphData.buffer, graphData.byteOffset, graphData.byteLength);
 
-  const wtnsBytes = calc_witness(inputsData, graphDataUint8Array);
+  const result = calc_witness(inputsData, graphDataUint8Array);
+  const {wtns_bytes, duration_micros} = result.to_js_object();
+  console.log(`Witness size: ${wtns_bytes.length} bytes`);
 
-  await fs.promises.writeFile(witnessFile, wtnsBytes);
+  const wnts_buffer = Buffer.from(wtns_bytes);
+  await fs.promises.writeFile(witnessFile, wnts_buffer);
   console.log(`Witness saved to ${witnessFile}`);
+  let duration_ms = duration_micros / 1000;
+  console.log(`Witness generated in: ${duration_ms}ms`);
 }
 
 main().catch((err) => {

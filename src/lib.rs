@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::slice::from_raw_parts;
 use wtns_file::FieldElement;
+use web_time::Instant;
 
 // libc doesn't work with wasm32-unknown-unknown for some reason, so we replace `malloc` and `memcpy`
 // with shims when needed
@@ -169,13 +170,13 @@ pub fn calc_witness(inputs: &str, graph_data: &[u8]) -> Result<Vec<U256>, Error>
     Ok(graph::evaluate(&nodes, inputs_buffer.as_slice(), &signals))
 }
 
-pub fn calc_witness_flow(inputs: &str, graph_data: &[u8]) -> Vec<u8> {
-    // let start = Instant::now();
+pub fn calc_witness_flow(inputs: &str, graph_data: &[u8]) -> (Vec<u8>, u128) {
+    let start = Instant::now();
     let witness = calc_witness(&inputs, &graph_data).unwrap();
     let wtns_bytes = wtns_from_witness(witness);
-    // let duration = start.elapsed();
-    // println!("Witness generated in: {:?}", duration);
-    wtns_bytes
+    let duration = start.elapsed();
+    println!("Witness generated in: {:?}", duration);
+    (wtns_bytes, duration.as_micros())
 }
 
 fn get_inputs_size(nodes: &Vec<Node>) -> usize {

@@ -4,7 +4,7 @@
   "scripts": {
     "test-build-circuit": "node src/build-circuit.js ../test_circuits/circuit1.circom ../test_working_dir/circuit1_graph.bin -l ../test_deps/circomlib/circuits",
     "test-calc-witness": "node src/calc-witness.js ../test_working_dir/circuit1_graph.bin ../test_circuits/circuit1_inputs.json ../test_working_dir/circuit1.wtns",
-    "rebuild": "(cd .. && bash wasm.bash) && rm -rf node_modules && npm i"
+    "rebuild": "(cd .. && bash build-wasm.bash) && rm -rf node_modules && npm i"
   },
   "dependencies": {
     "witnesscalc": "../pkg-nodejs"
