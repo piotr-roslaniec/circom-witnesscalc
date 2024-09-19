@@ -21,11 +21,11 @@ echo "" >> "$output_file"
 
 # Create the header row of the table
 header="| Circuit Name         | Native Circuit Time | Native Witness Time "
-divider="|----------------------|-----------------------|--------------------------"
+divider="|----------------------|-----------------------|-----------------------"
 for input_file in "${input_files[@]:1}"; do
   file_name=$(basename "$input_file")
-  header+="| $file_name Circuit Time | $file_name Witness Time | Performance Loss (%) "
-  divider+="|-----------------------|--------------------------|------------------------"
+  header+="| $file_name Circuit Time | $file_name Witness Time "
+  divider+="|-----------------------|-----------------------"
 done
 header+="|"
 divider+="|"
@@ -35,19 +35,6 @@ echo "$divider" >> "$output_file"
 
 # Variables to track state
 declare -A circuit_data
-
-# Function to convert times to seconds (for comparison)
-convert_to_seconds() {
-  local time_str="$1"
-
-  if [[ "$time_str" == *"ms" ]]; then
-    echo "$(echo "$time_str" | sed 's/ms//')e-3" | bc -l
-  elif [[ "$time_str" == *"µs" ]]; then
-    echo "$(echo "$time_str" | sed 's/µs//')e-6" | bc -l
-  else
-    echo "$(echo "$time_str" | sed 's/m//; s/s//' | awk -F' ' '{print $1 * 60 + $2}')"
-  fi
-}
 
 # Function to process each file and store the performance data
 process_file() {
@@ -105,6 +92,23 @@ for circuit_name in $unique_circuits; do
   native_result="${circuit_data["$circuit_name,${input_files[0]}"]}"
   native_time=$(echo "$native_result" | cut -d'|' -f1)
   native_witness=$(echo "$native_result" | cut -d'|' -f2)
-  row+="| $native_time | $native_witness |"
+
+  row+="| $native_time | $native_witness "
+
+  # For each file, add the corresponding performance data
+  for input_file in "${input_files[@]:1}"; do
+    result="${circuit_data["$circuit_name,$input_file"]}"
+
+    if [[ -z "$result" ]]; then
+      row+="| N/A | N/A "
+    else
+      other_time=$(echo "$result" | cut -d'|' -f1)
+      other_witness=$(echo "$result" | cut -d'|' -f2)
+
+      row+="| $other_time | $other_witness "
+    fi
+  done
+
+  row+="|"
   echo "$row" >> "$output_file"
 done
