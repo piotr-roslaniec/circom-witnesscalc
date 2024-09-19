@@ -2,7 +2,8 @@
   "name": "js",
   "version": "0.0.0",
   "scripts": {
-    "rebuild": "(cd .. && bash build-wasm.bash) && rm -rf node_modules && npm i"
+    "rebuild": "(cd .. && bash build-wasm.bash) && rm -rf node_modules && npm i",
+
   },
   "dependencies": {
     "witnesscalc": "../pkg-web"
