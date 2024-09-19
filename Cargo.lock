@@ -1176,6 +1176,7 @@ dependencies = [
  "num-traits",
  "path-clean",
  "program_structure",
+ "rayon",
  "regex",
  "rustc-hex",
  "serde",
