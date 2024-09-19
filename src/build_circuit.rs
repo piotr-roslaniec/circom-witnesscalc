@@ -180,7 +180,7 @@ fn operator_argument_instruction_n(
                         );
                         result.push(signal_node);
                     }
-                    return result;
+                    result
                 }
                 LocationRule::Mapped { .. } => {
                     todo!()
@@ -237,7 +237,7 @@ fn operator_argument_instruction_n(
                         subcomponents,
                         subcomponent_idx,
                         io_map,
-                        signal_code.clone(),
+                        *signal_code,
                         indexes,
                         nodes,
                         vars,
@@ -306,7 +306,7 @@ fn operator_argument_instruction_n(
                             result.push(idx);
                         }
                         Some(Var::Value(ref v)) => {
-                            result.push(nodes.push(Node::Constant(v.clone())).0);
+                            result.push(nodes.push(Node::Constant(*v)).0);
                         }
                         None => {
                             panic!(
@@ -364,7 +364,7 @@ fn operator_argument_instruction(
                     let signal_idx = component_signal_start + signal_idx;
                     let signal_node = signal_node_idx[signal_idx];
                     assert_ne!(signal_node, usize::MAX, "signal is not set yet");
-                    return signal_node;
+                    signal_node
                 }
                 LocationRule::Mapped { .. } => {
                     todo!()
@@ -415,7 +415,7 @@ fn operator_argument_instruction(
                         subcomponents,
                         subcomponent_idx,
                         io_map,
-                        signal_code.clone(),
+                        *signal_code,
                         indexes,
                         nodes,
                         vars,
@@ -445,7 +445,7 @@ fn operator_argument_instruction(
                 let signal_idx = signal_offset + signal_idx;
                 let signal_node = signal_node_idx[signal_idx];
                 assert_ne!(signal_node, usize::MAX, "signal is not set yet");
-                return signal_node;
+                signal_node
             }
             AddressType::Variable => match load_bucket.src {
                 LocationRule::Indexed { ref location, .. } => {
@@ -463,7 +463,7 @@ fn operator_argument_instruction(
                     .must_const_usize(nodes, call_stack);
                     match vars[var_idx] {
                         Some(Var::Node(idx)) => idx,
-                        Some(Var::Value(ref v)) => nodes.push(Node::Constant(v.clone())).0,
+                        Some(Var::Value(ref v)) => nodes.push(Node::Constant(*v)).0,
                         None => {
                             panic!("variable is not set");
                         }
@@ -577,7 +577,7 @@ fn node_from_compute_bucket(
             print_debug,
             call_stack,
         );
-        return Node::Op(op.clone(), arg1, arg2);
+        return Node::Op(*op, arg1, arg2);
     }
     if let Some(op) = UNO_OPERATORS_MAP.get(&compute_bucket.op) {
         let arg1 = operator_argument_instruction(
@@ -591,7 +591,7 @@ fn node_from_compute_bucket(
             print_debug,
             call_stack,
         );
-        return Node::UnoOp(op.clone(), arg1);
+        return Node::UnoOp(*op, arg1);
     }
     panic!(
         "not implemented: this operator is not supported to be converted to Node: {}",
@@ -621,7 +621,7 @@ fn calc_mapped_signal_idx(
     let def: &IODef = &signals[signal_code];
     let mut map_access = def.offset;
 
-    if indexes.len() > 0 {
+    if !indexes.is_empty() {
         if indexes.len() > 1 {
             todo!("not implemented yet");
         }
@@ -1066,7 +1066,7 @@ fn process_instruction(
             let mut cmp_signal_offset = create_component_bucket.signal_offset;
 
             for i in sub_cmp_idx..sub_cmp_idx + create_component_bucket.number_of_cmp {
-                if let Some(_) = subcomponents[i] {
+                if subcomponents[i].is_some() {
                     panic!("subcomponent already set");
                 }
                 subcomponents[i] = Some(ComponentInstance {
@@ -1086,7 +1086,7 @@ fn process_instruction(
                         vars,
                         component_signal_start,
                         signal_node_idx,
-                        &subcomponents,
+                        subcomponents,
                         io_map,
                         print_debug,
                         call_stack
@@ -1194,7 +1194,7 @@ fn store_function_return_results_into_subsignal(
                         src_node_idxs.push(node_idx);
                     }
                     Some(Var::Value(v)) => {
-                        src_node_idxs.push(nodes.push(Node::Constant(v.clone())).0);
+                        src_node_idxs.push(nodes.push(Node::Constant(v)).0);
                     }
                     None => {
                         panic!("variable at index {} is not set", i);
@@ -1206,10 +1206,10 @@ fn store_function_return_results_into_subsignal(
             assert_eq!(final_data.context.size, 1);
             match v {
                 Var::Node(node_idx) => {
-                    src_node_idxs.push(node_idx.clone());
+                    src_node_idxs.push(*node_idx);
                 }
                 Var::Value(v) => {
-                    src_node_idxs.push(nodes.push(Node::Constant(v.clone())).0);
+                    src_node_idxs.push(nodes.push(Node::Constant(*v)).0);
                 }
             }
         }
@@ -1417,9 +1417,10 @@ fn calc_function_expression(
     }
 }
 
+#[inline]
 fn node_from_var(v: &Var, nodes: &mut Nodes) -> usize {
     match v {
-        Var::Value(ref v) => nodes.push(Node::Constant(v.clone())).0,
+        Var::Value(ref v) => nodes.push(Node::Constant(*v)).0,
         Var::Node(node_idx) => *node_idx,
     }
 }
@@ -1433,7 +1434,7 @@ fn compute_function_expression(
     if let Some(op) = DUO_OPERATORS_MAP.get(&compute_bucket.op) {
         assert_eq!(compute_bucket.stack.len(), 2);
         let a = calc_function_expression(
-            compute_bucket.stack.get(0).unwrap(),
+            compute_bucket.stack.first().unwrap(),
             fn_vars,
             nodes,
             call_stack,
@@ -1446,12 +1447,12 @@ fn compute_function_expression(
         );
         match (&a, &b) {
             (Var::Value(a), Var::Value(b)) => {
-                return Var::Value(op.eval(a.clone(), b.clone()));
+                return Var::Value(op.eval(a, b));
             }
             _ => {
                 let a_idx = node_from_var(&a, nodes);
                 let b_idx = node_from_var(&b, nodes);
-                return Var::Node(nodes.push(Node::Op(op.clone(), a_idx, b_idx)).0);
+                return Var::Node(nodes.push(Node::Op(*op, a_idx, b_idx)).0);
             }
         }
     }
@@ -1459,19 +1460,15 @@ fn compute_function_expression(
     if let Some(op) = UNO_OPERATORS_MAP.get(&compute_bucket.op) {
         assert_eq!(compute_bucket.stack.len(), 1);
         let a = calc_function_expression(
-            compute_bucket.stack.get(0).unwrap(),
+            compute_bucket.stack.first().unwrap(),
             fn_vars,
             nodes,
             call_stack,
         );
-        match &a {
-            Var::Value(v) => {
-                return Var::Value(op.eval(v.clone()));
-            }
-            Var::Node(node_idx) => {
-                return Var::Node(nodes.push(Node::UnoOp(op.clone(), *node_idx)).0);
-            }
-        }
+        return match &a {
+            Var::Value(v) => Var::Value(op.eval(v)),
+            Var::Node(node_idx) => Var::Node(nodes.push(Node::UnoOp(*op, *node_idx)).0),
+        };
     }
 
     panic!(
@@ -1892,7 +1889,7 @@ fn fmt_create_cmp_bucket(
     );
 
     let sub_cmp_id = match sub_cmp_id {
-        Var::Value(ref c) => format!("Constant {}", c.to_string()),
+        Var::Value(ref c) => format!("Constant {}", c),
         Var::Node(idx) => format!("Variable {}", idx),
     };
 
@@ -1938,7 +1935,7 @@ impl ToString for Var {
     fn to_string(&self) -> String {
         match self {
             Var::Value(ref c) => {
-                format!("Var::Value({})", c.to_string())
+                format!("Var::Value({})", c)
             }
             Var::Node(idx) => {
                 format!("Var::Node({})", idx)
@@ -1950,14 +1947,14 @@ impl ToString for Var {
 impl Var {
     fn to_const(&self, nodes: &Nodes) -> Result<U256, NodeConstErr> {
         match self {
-            Var::Value(v) => Ok(v.clone()),
+            Var::Value(v) => Ok(*v),
             Var::Node(node_idx) => nodes.to_const(NodeIdx::from(*node_idx)),
         }
     }
 
     fn to_const_usize(&self, nodes: &Nodes) -> Result<usize, Box<dyn Error>> {
         let c = self.to_const(nodes)?;
-        Ok(bigint_to_usize(&c)?)
+        bigint_to_usize(&c)
     }
 
     fn must_const_usize(&self, nodes: &Nodes, call_stack: &Vec<String>) -> usize {
@@ -2014,7 +2011,7 @@ fn load_n(
                     );
                     result.push(Var::Node(signal_node));
                 }
-                return result;
+                result
             }
             LocationRule::Mapped { .. } => {
                 panic!("mapped signals expect only on address type SubcmpSignal");
@@ -2071,7 +2068,7 @@ fn load_n(
                     subcomponents,
                     subcomponent_idx,
                     io_map,
-                    signal_code.clone(),
+                    *signal_code,
                     indexes,
                     nodes,
                     vars,
@@ -2111,7 +2108,7 @@ fn load_n(
                 );
                 result.push(Var::Node(signal_node));
             }
-            return result;
+            result
         }
         AddressType::Variable => {
             let location = if let LocationRule::Indexed {
@@ -2177,9 +2174,9 @@ fn build_unary_op_var(
 
     match &a {
         Var::Value(ref a) => Var::Value(match compute_bucket.op {
-            OperatorType::ToAddress => a.clone(),
+            OperatorType::ToAddress => *a,
             OperatorType::PrefixSub => {
-                if a.clone() == U256::ZERO {
+                if *a == U256::ZERO {
                     U256::ZERO
                 } else {
                     M - a
@@ -2200,7 +2197,7 @@ fn build_unary_op_var(
                         nodes.to_const(NodeIdx(*node_idx)).unwrap_or_else(|e| {
                             panic!(
                                 "ToAddress argument is not a constant: {}: {}",
-                                e.to_string(),
+                                e,
                                 call_stack.join(" -> ")
                             );
                         });
@@ -2257,16 +2254,16 @@ fn build_binary_op_var(
     );
 
     let mut node_idx = |v: &Var| match v {
-        Var::Value(ref c) => nodes.push(Node::Constant(c.clone())).0,
+        Var::Value(ref c) => nodes.push(Node::Constant(*c)).0,
         Var::Node(idx) => *idx,
     };
 
     match (&a, &b) {
         (Var::Value(ref a), Var::Value(ref b)) => {
             Var::Value(match compute_bucket.op {
-                OperatorType::Mul => Operation::Mul.eval(a.clone(), b.clone()),
+                OperatorType::Mul => Operation::Mul.eval(a, b),
                 OperatorType::Div => {
-                    if b.clone() == U256::ZERO {
+                    if *b == U256::ZERO {
                         // as we are simulating a circuit execution with signals
                         // values all equal to 0, just return 0 here in case of
                         // division by zero
@@ -2275,15 +2272,15 @@ fn build_binary_op_var(
                         a.mul_mod(b.inv_mod(M).unwrap(), M)
                     }
                 }
-                OperatorType::Add => a.add_mod(b.clone(), M),
+                OperatorType::Add => a.add_mod(*b, M),
                 OperatorType::Sub => a.add_mod(M - b, M),
-                OperatorType::Pow => Operation::Pow.eval(a.clone(), b.clone()),
-                OperatorType::IntDiv => Operation::Idiv.eval(a.clone(), b.clone()),
-                OperatorType::Mod => Operation::Mod.eval(a.clone(), b.clone()),
-                OperatorType::ShiftL => Operation::Shl.eval(a.clone(), b.clone()),
-                OperatorType::ShiftR => Operation::Shr.eval(a.clone(), b.clone()),
-                OperatorType::LesserEq => Operation::Leq.eval(a.clone(), b.clone()),
-                OperatorType::GreaterEq => Operation::Geq.eval(a.clone(), b.clone()),
+                OperatorType::Pow => Operation::Pow.eval(a, b),
+                OperatorType::IntDiv => Operation::Idiv.eval(a, b),
+                OperatorType::Mod => Operation::Mod.eval(a, b),
+                OperatorType::ShiftL => Operation::Shl.eval(a, b),
+                OperatorType::ShiftR => Operation::Shr.eval(a, b),
+                OperatorType::LesserEq => Operation::Leq.eval(a, b),
+                OperatorType::GreaterEq => Operation::Geq.eval(a, b),
                 OperatorType::Lesser => {
                     if a < b {
                         U256::from(1)
@@ -2291,13 +2288,13 @@ fn build_binary_op_var(
                         U256::ZERO
                     }
                 }
-                OperatorType::Greater => Operation::Gt.eval(a.clone(), b.clone()),
-                OperatorType::Eq(1) => Operation::Eq.eval(a.clone(), b.clone()),
+                OperatorType::Greater => Operation::Gt.eval(a, b),
+                OperatorType::Eq(1) => Operation::Eq.eval(a, b),
                 OperatorType::NotEq => U256::from(a != b),
-                OperatorType::BoolAnd => Operation::Land.eval(a.clone(), b.clone()),
-                OperatorType::BitOr => Operation::Bor.eval(a.clone(), b.clone()),
-                OperatorType::BitAnd => Operation::Band.eval(a.clone(), b.clone()),
-                OperatorType::BitXor => Operation::Bxor.eval(a.clone(), b.clone()),
+                OperatorType::BoolAnd => Operation::Land.eval(a, b),
+                OperatorType::BitOr => Operation::Bor.eval(a, b),
+                OperatorType::BitAnd => Operation::Band.eval(a, b),
+                OperatorType::BitXor => Operation::Bxor.eval(a, b),
                 OperatorType::MulAddress => a * b,
                 OperatorType::AddAddress => a + b,
                 _ => {
@@ -2557,7 +2554,7 @@ pub fn init_input_signals(
     };
 
     for (name, offset, len) in input_list {
-        inputs_info.insert(name.clone(), (signal_values.len(), len.clone()));
+        inputs_info.insert(name.clone(), (signal_values.len(), *len));
         match inputs {
             Some(ref inputs) => match inputs.get(name) {
                 Some(values) => {
@@ -2567,7 +2564,7 @@ pub fn init_input_signals(
                                 name, *len, values.len());
                     }
                     for (i, v) in values.iter().enumerate() {
-                        signal_values.push(v.clone());
+                        signal_values.push(*v);
                         signal_node_idx[offset + i] =
                             nodes.push(Node::Input(signal_values.len() - 1)).0;
                     }
@@ -2586,7 +2583,7 @@ pub fn init_input_signals(
         }
     }
 
-    return (inputs_info, signal_values);
+    (inputs_info, signal_values)
 }
 
 pub fn run_template(
@@ -2623,7 +2620,7 @@ pub fn run_template(
 
     for inst in &tmpl.body {
         process_instruction(
-            &inst,
+            inst,
             nodes,
             signal_node_idx,
             &mut vars,
@@ -2667,8 +2664,8 @@ pub fn evaluate_unoptimized(
         }
         node_idx_to_signal
             .entry(node_idx)
-            .and_modify(|v| v.push(signal_idx))
-            .or_insert(vec![signal_idx]);
+            .or_default()
+            .push(signal_idx);
     }
 
     let mut signal_to_witness: HashMap<usize, Vec<usize>> = HashMap::new();
@@ -2677,11 +2674,11 @@ pub fn evaluate_unoptimized(
         println!("witness {} -> {}", witness_idx, signal_idx);
         signal_to_witness
             .entry(signal_idx)
-            .and_modify(|v| v.push(witness_idx))
-            .or_insert(vec![witness_idx]);
+            .or_default()
+            .push(witness_idx);
     }
 
-    let mut values = Vec::with_capacity(nodes.len());
+    let mut values: Vec<U256> = Vec::with_capacity(nodes.len());
 
     println!("<node idx> <value> <signal indexes> <witness indexes> <node descr>");
     for (node_idx, &node) in nodes.iter().enumerate() {
@@ -2691,9 +2688,9 @@ pub fn evaluate_unoptimized(
                 panic!("no montgomery constant expected in unoptimized graph")
             }
             Node::Input(i) => inputs[i],
-            Node::Op(op, a, b) => op.eval(values[a], values[b]),
-            Node::UnoOp(op, a) => op.eval(values[a]),
-            Node::TresOp(op, a, b, c) => op.eval(values[a], values[b], values[c]),
+            Node::Op(op, a, b) => op.eval(&values[a], &values[b]),
+            Node::UnoOp(op, a) => op.eval(&values[a]),
+            Node::TresOp(op, a, b, c) => op.eval(&values[a], &values[b], &values[c]),
         };
         values.push(value);
 
@@ -2793,7 +2790,7 @@ fn store_subcomponent_signals(
             subcomponents,
             subcomponent_idx,
             io_map,
-            signal_code.clone(),
+            *signal_code,
             indexes,
             nodes,
             tmpl_vars,
@@ -2880,14 +2877,14 @@ pub fn build_circuit_flow(
         args.circuit_file.clone(),
         version,
         args.link_libraries.clone(),
-        &files_map,
+        files_map,
     );
     log::info!("Creating program archive");
     let mut program_archive = match parser_result {
         Err((file_library, report_collection)) => {
             log::info!(
                 "Parser returned error with {} reports",
-                report_collection.to_vec().iter().count()
+                report_collection.to_vec().len()
             );
             Report::print_reports(&report_collection, &file_library);
             for report in report_collection.to_vec() {

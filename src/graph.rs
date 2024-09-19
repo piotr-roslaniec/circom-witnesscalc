@@ -59,13 +59,12 @@ pub enum Operation {
 }
 
 impl Operation {
-    // TODO: rewrite to &U256 type
-    pub fn eval(&self, a: U256, b: U256) -> U256 {
+    pub fn eval(&self, a: &U256, b: &U256) -> U256 {
         use Operation::*;
         match self {
-            Mul => a.mul_mod(b, M),
+            Mul => a.mul_mod(*b, M),
             Div => {
-                if b == U256::ZERO {
+                if b == &U256::ZERO {
                     // as we are simulating a circuit execution with signals
                     // values all equal to 0, just return 0 here in case of
                     // division by zero
@@ -74,18 +73,18 @@ impl Operation {
                     a.mul_mod(b.inv_mod(M).unwrap(), M)
                 }
             }
-            Add => a.add_mod(b, M),
+            Add => a.add_mod(*b, M),
             Sub => a.add_mod(M - b, M),
-            Pow => a.pow_mod(b, M),
-            Mod => a.div_rem(b).1,
+            Pow => a.pow_mod(*b, M),
+            Mod => a.div_rem(*b).1,
             Eq => U256::from(a == b),
             Neq => U256::from(a != b),
-            Lt => u_lt(&a, &b),
-            Gt => u_gt(&a, &b),
-            Leq => u_lte(&a, &b),
-            Geq => u_gte(&a, &b),
-            Land => U256::from(a != U256::ZERO && b != U256::ZERO),
-            Lor => U256::from(a != U256::ZERO || b != U256::ZERO),
+            Lt => u_lt(a, b),
+            Gt => u_gt(a, b),
+            Leq => u_lte(a, b),
+            Geq => u_gte(a, b),
+            Land => U256::from(*a != U256::ZERO && *b != U256::ZERO),
+            Lor => U256::from(*a != U256::ZERO || *b != U256::ZERO),
             Shl => compute_shl_uint(a, b),
             Shr => compute_shr_uint(a, b),
             // TODO test with conner case when it is possible to get the number
@@ -200,16 +199,16 @@ pub enum UnoOperation {
 }
 
 impl UnoOperation {
-    pub fn eval(&self, a: U256) -> U256 {
+    pub fn eval(&self, a: &U256) -> U256 {
         match self {
             UnoOperation::Neg => {
-                if a == U256::ZERO {
+                if a == &U256::ZERO {
                     U256::ZERO
                 } else {
                     M - a
                 }
             }
-            UnoOperation::Id => a,
+            UnoOperation::Id => *a,
         }
     }
 
@@ -244,13 +243,13 @@ pub enum TresOperation {
 }
 
 impl TresOperation {
-    pub fn eval(&self, a: U256, b: U256, c: U256) -> U256 {
+    pub fn eval(&self, a: &U256, b: &U256, c: &U256) -> U256 {
         match self {
             TresOperation::TernCond => {
-                if a == U256::ZERO {
-                    c
+                if a == &U256::ZERO {
+                    *c
                 } else {
-                    b
+                    *b
                 }
             }
         }
@@ -300,14 +299,14 @@ impl Nodes {
         let me = self.0.get(idx.0).ok_or(NodeConstErr::EmptyNode(idx))?;
         match me {
             Node::Constant(v) => Ok(v.clone()),
-            Node::UnoOp(op, a) => Ok(op.eval(self.to_const(NodeIdx(*a))?)),
+            Node::UnoOp(op, a) => Ok(op.eval(&self.to_const(NodeIdx(*a))?)),
             Node::Op(op, a, b) => {
-                Ok(op.eval(self.to_const(NodeIdx(*a))?, self.to_const(NodeIdx(*b))?))
+                Ok(op.eval(&self.to_const(NodeIdx(*a))?, &self.to_const(NodeIdx(*b))?))
             }
             Node::TresOp(op, a, b, c) => Ok(op.eval(
-                self.to_const(NodeIdx(*a))?,
-                self.to_const(NodeIdx(*b))?,
-                self.to_const(NodeIdx(*c))?,
+                &self.to_const(NodeIdx(*a))?,
+                &self.to_const(NodeIdx(*b))?,
+                &self.to_const(NodeIdx(*c))?,
             )),
             Node::Input(_) => Err(NodeConstErr::InputSignal),
             Node::MontConstant(_) => {
@@ -364,13 +363,13 @@ impl std::fmt::Display for NodeConstErr {
 
 impl Error for NodeConstErr {}
 
-fn compute_shl_uint(a: U256, b: U256) -> U256 {
+fn compute_shl_uint(a: &U256, b: &U256) -> U256 {
     debug_assert!(b.lt(&U256::from(256)));
     let ls_limb = b.as_limbs()[0];
     a.shl(ls_limb as usize)
 }
 
-fn compute_shr_uint(a: U256, b: U256) -> U256 {
+fn compute_shr_uint(a: &U256, b: &U256) -> U256 {
     debug_assert!(b.lt(&U256::from(256)));
     let ls_limb = b.as_limbs()[0];
     a.shr(ls_limb as usize)
@@ -433,10 +432,14 @@ pub fn evaluate(nodes: &[Node], inputs: &[U256], outputs: &[usize]) -> Vec<U256>
 pub fn propagate(nodes: &mut [Node]) {
     assert_valid(nodes);
     let mut constants = 0_usize;
+    let mut const_map = HashMap::new();
+
     for i in 0..nodes.len() {
         if let Node::Op(op, a, b) = nodes[i] {
             if let (Node::Constant(va), Node::Constant(vb)) = (nodes[a], nodes[b]) {
-                nodes[i] = Node::Constant(op.eval(va, vb));
+                let result = op.eval(&va, &vb);
+                nodes[i] = Node::Constant(result);
+                const_map.entry(result).or_insert(i);
                 constants += 1;
             } else if a == b {
                 // Not constant but equal
@@ -452,14 +455,14 @@ pub fn propagate(nodes: &mut [Node]) {
             }
         } else if let Node::UnoOp(op, a) = nodes[i] {
             if let Node::Constant(va) = nodes[a] {
-                nodes[i] = Node::Constant(op.eval(va));
+                nodes[i] = Node::Constant(op.eval(&va));
                 constants += 1;
             }
         } else if let Node::TresOp(op, a, b, c) = nodes[i] {
             if let (Node::Constant(va), Node::Constant(vb), Node::Constant(vc)) =
                 (nodes[a], nodes[b], nodes[c])
             {
-                nodes[i] = Node::Constant(op.eval(va, vb, vc));
+                nodes[i] = Node::Constant(op.eval(&va, &vb, &vc));
                 constants += 1;
             }
         }
@@ -541,7 +544,7 @@ pub fn tree_shake(nodes: &mut Vec<Node>, outputs: &mut [usize]) {
 /// Randomly evaluate the graph
 fn random_eval(nodes: &mut Vec<Node>) -> Vec<U256> {
     let mut rng = rand::thread_rng();
-    let mut values = Vec::with_capacity(nodes.len());
+    let mut values: Vec<U256> = Vec::with_capacity(nodes.len());
     let mut inputs = HashMap::new();
     let mut prfs = HashMap::new();
     let mut prfs_uno = HashMap::new();
@@ -557,7 +560,7 @@ fn random_eval(nodes: &mut Vec<Node>) -> Vec<U256> {
             // Algebraic Ops are evaluated directly
             // Since the field is large, by Swartz-Zippel if
             // two values are the same then they are likely algebraically equal.
-            Node::Op(op @ (Add | Sub | Mul), a, b) => op.eval(values[*a], values[*b]),
+            Node::Op(op @ (Add | Sub | Mul), a, b) => op.eval(&values[*a], &values[*b]),
 
             // Input and non-algebraic ops are random functions
             // TODO: https://github.com/recmo/uint/issues/95 and use .gen_range(..M)
