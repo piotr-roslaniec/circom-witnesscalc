@@ -1,6 +1,6 @@
 use circom_witnesscalc::build_circuit::Args;
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 fn parse_args() -> Args {
     let args: Vec<String> = env::args().collect();

@@ -1,4 +1,4 @@
-use circom_witnesscalc::{calc_witness_flow};
+use circom_witnesscalc::calc_witness_flow;
 use std::env;
 use std::fs::File;
 use std::io::Write;

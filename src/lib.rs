@@ -17,8 +17,8 @@ use ruint::ParseError;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::slice::from_raw_parts;
-use wtns_file::FieldElement;
 use web_time::Instant;
+use wtns_file::FieldElement;
 
 // libc doesn't work with wasm32-unknown-unknown for some reason, so we replace `malloc` and `memcpy`
 // with shims when needed
@@ -52,18 +52,19 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 // include!("bindings.rs");
 
 fn prepare_status(status: *mut gw_status_t, code: GW_ERROR_CODE, error_msg: &str) {
-    if !status.is_null() {
-        let bs = error_msg.as_bytes();
-        unsafe {
-            (*status).code = code;
-            (*status).error_msg = malloc(bs.len() + 1) as *mut c_char;
-            memcpy(
-                (*status).error_msg as *mut c_void,
-                bs.as_ptr() as *mut c_void,
-                bs.len(),
-            );
-            *((*status).error_msg.offset(bs.len() as isize)) = 0;
-        }
+    if status.is_null() {
+        return;
+    }
+    let bs = error_msg.as_bytes();
+    unsafe {
+        (*status).code = code;
+        (*status).error_msg = malloc(bs.len() + 1) as *mut c_char;
+        memcpy(
+            (*status).error_msg as *mut c_void,
+            bs.as_ptr() as *mut c_void,
+            bs.len(),
+        );
+        *((*status).error_msg.offset(bs.len() as isize)) = 0;
     }
 }
 
@@ -201,18 +202,18 @@ fn populate_inputs(
     input_buffer: &mut Vec<U256>,
 ) {
     for (key, value) in input_list {
-        let (offset, len) = inputs_info[key];
-        if len != value.len() {
-            panic!("Invalid input length for {}", key);
-        }
-        println!("input {}, offset {}, len {}", key, offset, len);
+        if let Some(&(offset, len)) = inputs_info.get(key) {
+            if len != value.len() {
+                panic!("Invalid input length for {}", key);
+            }
+            println!("input {}, offset {}, len {}", key, offset, len);
 
-        for (i, v) in value.iter().enumerate() {
-            input_buffer[offset + i] = v.clone();
+            for (i, v) in value.iter().enumerate() {
+                input_buffer[offset + i] = v.clone();
+            }
         }
     }
 }
-
 fn u256_to_field_element(a: &U256) -> FieldElement<32> {
     let x: [u8; 32] = a.as_le_slice().try_into().unwrap();
     x.into()

@@ -1,18 +1,18 @@
 #![no_std]
 
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::io::Write;
 use crate::build_circuit::Args;
 use ruint::aliases::U256;
+use rust_embed::RustEmbed;
 use serde::Serialize;
 use serde_wasm_bindgen::from_value;
 use serde_wasm_bindgen::Serializer;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::io::Write;
 use std::path::PathBuf;
-use rust_embed::RustEmbed;
+use vfs::{EmbeddedFS, FileSystem, MemoryFS, VfsError, VfsPath};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use vfs::{VfsPath, VfsError, MemoryFS, EmbeddedFS, FileSystem};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the

@@ -17,11 +17,11 @@ use lazy_static::lazy_static;
 use program_structure::error_definition::Report;
 use ruint::aliases::U256;
 use ruint::uint;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 use std::{fmt, fs};
-use serde::Serialize;
 use type_analysis::check_types::check_types;
 
 pub const M: U256 =
@@ -2870,7 +2870,11 @@ fn store_subcomponent_signals(
     }
 }
 
-pub fn build_circuit_flow(args: &Args, version: &str, files_map: &HashMap<String, String>) -> Vec<u8> {
+pub fn build_circuit_flow(
+    args: &Args,
+    version: &str,
+    files_map: &HashMap<String, String>,
+) -> Vec<u8> {
     log::info!("Running parser");
     let parser_result = parser_wasm::run_parser(
         args.circuit_file.clone(),
@@ -2881,7 +2885,10 @@ pub fn build_circuit_flow(args: &Args, version: &str, files_map: &HashMap<String
     log::info!("Creating program archive");
     let mut program_archive = match parser_result {
         Err((file_library, report_collection)) => {
-            log::info!("Parser returned error with {} reports", report_collection.to_vec().iter().count());
+            log::info!(
+                "Parser returned error with {} reports",
+                report_collection.to_vec().iter().count()
+            );
             Report::print_reports(&report_collection, &file_library);
             for report in report_collection.to_vec() {
                 log::error!("{}", report.get_message());

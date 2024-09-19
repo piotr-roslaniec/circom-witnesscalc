@@ -11,3 +11,4 @@ ir_log/
 test_results/
 pkg-*/
 node_modules/
+*.svg

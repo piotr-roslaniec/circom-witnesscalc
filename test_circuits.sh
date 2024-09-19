@@ -68,6 +68,9 @@ function test_circuit() {
     -l "${script_dir}/test_deps/iden3-circuits-master/node_modules/circomlib/circuits"
 	time node nodejs/src/calc-witness.js "$circuit_graph_path" "$inputs_path" "$witness_path"
 
+#  cargo flamegraph --dev --bin build-circuit -o "build-circuit_${circuit_name}.svg" -- "$circuit_path" "$circuit_graph_path" -l "$circomlib_path"
+#  cargo flamegraph --dev --bin calc-witness -o "calc-witness_${circuit_name}.svg" -- "$circuit_graph_path" "$inputs_path" "$witness_path"
+
 	popd > /dev/null
 	
 	# run commands from the working directory
